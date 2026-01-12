@@ -1,0 +1,66 @@
+---
+# AIOps Event-Driven Ansible Rulebook
+# Receives approved actions from Brain and executes appropriate playbooks
+
+- name: AIOps Automation Rulebook
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+
+  rules:
+    - name: Execute restart_service action
+      condition: event.payload.action_type == "restart_service"
+      action:
+        run_playbook:
+          name: playbooks/restart_service.yml
+          extra_vars:
+            service: "{{ event.payload.target }}"
+            action_id: "{{ event.payload.action_id }}"
+            callback: "{{ event.payload.callback_url | default('http://host.docker.internal:8000/automation/callback') }}"
+
+    - name: Execute kill_process action
+      condition: event.payload.action_type == "kill_process"
+      action:
+        run_playbook:
+          name: playbooks/kill_process.yml
+          extra_vars:
+            process: "{{ event.payload.target }}"
+            action_id: "{{ event.payload.action_id }}"
+            callback: "{{ event.payload.callback_url | default('http://host.docker.internal:8000/automation/callback') }}"
+
+    - name: Execute clear_cache action
+      condition: event.payload.action_type == "clear_cache"
+      action:
+        run_playbook:
+          name: playbooks/clear_cache.yml
+          extra_vars:
+            cache: "{{ event.payload.target | default('system') }}"
+            action_id: "{{ event.payload.action_id }}"
+            callback: "{{ event.payload.callback_url | default('http://host.docker.internal:8000/automation/callback') }}"
+
+    - name: Execute restart_container action
+      condition: event.payload.action_type == "restart_container"
+      action:
+        run_playbook:
+          name: playbooks/restart_container.yml
+          extra_vars:
+            container: "{{ event.payload.target }}"
+            action_id: "{{ event.payload.action_id }}"
+            callback: "{{ event.payload.callback_url | default('http://host.docker.internal:8000/automation/callback') }}"
+
+    - name: Execute health_check action
+      condition: event.payload.action_type == "health_check" or event.payload.action_type == "run_playbook"
+      action:
+        run_playbook:
+          name: playbooks/health_check.yml
+          extra_vars:
+            action_id: "{{ event.payload.action_id }}"
+            callback: "{{ event.payload.callback_url | default('http://host.docker.internal:8000/automation/callback') }}"
+
+    - name: Log unhandled action types
+      condition: event.payload.action_type is defined
+      action:
+        debug:
+          msg: "Received action: {{ event.payload }}"

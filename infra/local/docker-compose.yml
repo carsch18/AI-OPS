@@ -1,0 +1,64 @@
+services:
+  netdata:
+    image: netdata/netdata:latest
+    container_name: netdata
+    ports:
+      - "19999:19999"
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - netdataconfig:/etc/netdata
+      - netdatalib:/var/lib/netdata
+      - netdatacache:/var/cache/netdata
+      # - /:/host/root:ro,rslave
+      # - /etc/passwd:/host/etc/passwd:ro
+      # - /etc/group:/host/etc/group:ro
+      # - /proc:/host/proc:ro
+      # - /sys:/host/sys:ro
+      # - /etc/os-release:/host/etc/os-release:ro
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      - NETDATA_EXTRA_DEB_PACKAGES=python3-pip
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: aiops-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: aiops
+      POSTGRES_PASSWORD: aiops_password
+      POSTGRES_DB: aiops_brain
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # Ansible EDA Controller
+  ansible-eda:
+    image: quay.io/ansible/ansible-rulebook:latest
+    container_name: aiops-eda
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../../apps/automation/playbooks:/playbooks:ro
+      - ../../apps/automation/rules:/rules:ro
+      - ../../apps/automation/inventory:/inventory:ro
+    working_dir: /rules
+    command: >
+      ansible-rulebook 
+      --rulebook aiops_rulebook.yml 
+      -i /inventory/hosts.yml 
+      --verbose
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  netdataconfig:
+  netdatalib:
+  netdatacache:
+  pgdata:

@@ -1,0 +1,96 @@
+---
+# Restart Container Playbook
+# Restart Docker containers with health verification
+
+- name: Restart Docker Container
+  hosts: "{{ target_host | default('localhost') }}"
+  gather_facts: true
+  vars:
+    container_name: "{{ container | default('') }}"
+    callback_url: "{{ callback | default('http://localhost:8000/automation/callback') }}"
+    action_id: "{{ action_id | default('unknown') }}"
+
+  tasks:
+    - name: Report start
+      uri:
+        url: "{{ callback_url }}"
+        method: POST
+        body_format: json
+        body:
+          action_id: "{{ action_id }}"
+          status: "running"
+          message: "Starting container restart for {{ container_name }}"
+      ignore_errors: true
+
+    - name: Validate container name provided
+      fail:
+        msg: "Container name must be provided"
+      when: container_name == ''
+
+    - name: Check if container exists
+      command: "docker inspect {{ container_name }}"
+      register: container_inspect
+      ignore_errors: true
+      changed_when: false
+
+    - name: Container not found
+      fail:
+        msg: "Container {{ container_name }} not found"
+      when: container_inspect.rc != 0
+
+    - name: Get container status before restart
+      command: "docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ container_name }}"
+      register: status_before
+      changed_when: false
+
+    - name: Restart the container
+      command: "docker restart {{ container_name }}"
+      register: restart_result
+
+    - name: Wait for container to initialize
+      pause:
+        seconds: 5
+
+    - name: Get container status after restart
+      command: "docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ container_name }}"
+      register: status_after
+      changed_when: false
+
+    - name: Check container health
+      command: "docker inspect --format='{{ '{{' }}if .State.Health{{ '}}' }}{{ '{{' }}.State.Health.Status{{ '}}' }}{{ '{{' }}else{{ '}}' }}no-healthcheck{{ '{{' }}end{{ '}}' }}' {{ container_name }}"
+      register: health_status
+      changed_when: false
+      ignore_errors: true
+
+    - name: Report success
+      uri:
+        url: "{{ callback_url }}"
+        method: POST
+        body_format: json
+        body:
+          action_id: "{{ action_id }}"
+          status: "completed"
+          success: true
+          message: "Container {{ container_name }} restarted successfully"
+          details:
+            container: "{{ container_name }}"
+            status_before: "{{ status_before.stdout }}"
+            status_after: "{{ status_after.stdout }}"
+            health: "{{ health_status.stdout | default('unknown') }}"
+      when: status_after.stdout == 'running'
+
+    - name: Report failure
+      uri:
+        url: "{{ callback_url }}"
+        method: POST
+        body_format: json
+        body:
+          action_id: "{{ action_id }}"
+          status: "failed"
+          success: false
+          message: "Container {{ container_name }} failed to restart"
+          details:
+            container: "{{ container_name }}"
+            status: "{{ status_after.stdout }}"
+      when: status_after.stdout != 'running'
+      ignore_errors: true

@@ -1,0 +1,95 @@
+---
+# Health Check Playbook
+# Comprehensive system health verification
+
+- name: System Health Check
+  hosts: "{{ target_host | default('localhost') }}"
+  gather_facts: true
+  vars:
+    callback_url: "{{ callback | default('http://localhost:8000/automation/callback') }}"
+    action_id: "{{ action_id | default('unknown') }}"
+    checks: "{{ health_checks | default('all') }}"
+
+  tasks:
+    - name: Report start
+      uri:
+        url: "{{ callback_url }}"
+        method: POST
+        body_format: json
+        body:
+          action_id: "{{ action_id }}"
+          status: "running"
+          message: "Starting health check"
+      ignore_errors: true
+
+    - name: Check CPU usage
+      shell: "top -bn1 | grep 'Cpu(s)' | awk '{print $2}'"
+      register: cpu_usage
+      changed_when: false
+      when: checks in ['all', 'cpu']
+
+    - name: Check memory usage
+      command: "free -m"
+      register: memory_info
+      changed_when: false
+      when: checks in ['all', 'memory']
+
+    - name: Check disk usage
+      command: "df -h"
+      register: disk_info
+      changed_when: false
+      when: checks in ['all', 'disk']
+
+    - name: Check load average
+      command: "uptime"
+      register: load_info
+      changed_when: false
+      when: checks in ['all', 'load']
+
+    - name: List top 5 CPU processes
+      shell: "ps aux --sort=-%cpu | head -6"
+      register: top_cpu
+      changed_when: false
+      when: checks in ['all', 'processes']
+
+    - name: List top 5 memory processes
+      shell: "ps aux --sort=-%mem | head -6"
+      register: top_mem
+      changed_when: false
+      when: checks in ['all', 'processes']
+
+    - name: Check network connectivity
+      command: "ping -c 1 8.8.8.8"
+      register: network_check
+      changed_when: false
+      ignore_errors: true
+      when: checks in ['all', 'network']
+
+    - name: Check listening ports
+      command: "netstat -tuln"
+      register: ports_info
+      changed_when: false
+      ignore_errors: true
+      when: checks in ['all', 'ports']
+
+    - name: Compile health report
+      set_fact:
+        health_report:
+          cpu_usage: "{{ cpu_usage.stdout | default('N/A') }}"
+          memory: "{{ memory_info.stdout_lines | default([]) }}"
+          disk: "{{ disk_info.stdout_lines | default([]) }}"
+          load: "{{ load_info.stdout | default('N/A') }}"
+          network_ok: "{{ network_check.rc | default(1) == 0 }}"
+
+    - name: Report health check results
+      uri:
+        url: "{{ callback_url }}"
+        method: POST
+        body_format: json
+        body:
+          action_id: "{{ action_id }}"
+          status: "completed"
+          success: true
+          message: "Health check completed"
+          details: "{{ health_report }}"
+      ignore_errors: true

@@ -37,24 +37,21 @@ AIOps Command Center is a **production-grade autonomous operations platform** th
 
 ## 📸 Screenshots
 
-<table>
-  <tr>
-    <td><img src="images/Screenshot 2026-01-12 at 10.59.12 AM.png" alt="Dashboard Overview" width="400"/></td>
-    <td><img src="images/Screenshot 2026-01-12 at 10.59.39 AM.png" alt="Real-time Charts" width="400"/></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>Dashboard Overview</strong><br>Real-time metrics with OpenAI-inspired dark theme</td>
-    <td align="center"><strong>Live Charts</strong><br>CPU, Memory, Network, Disk I/O, Load</td>
-  </tr>
-  <tr>
-    <td><img src="images/Screenshot 2026-01-12 at 10.59.49 AM.png" alt="AI Chat Interface" width="400"/></td>
-    <td><img src="images/Screenshot 2026-01-12 at 10.59.58 AM.png" alt="HITL Approval" width="400"/></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>AI Chat Interface</strong><br>Natural language queries with slash commands</td>
-    <td align="center"><strong>Human-in-the-Loop</strong><br>Approval cards for remediation actions</td>
-  </tr>
-</table>
+### Dashboard Overview
+![Dashboard Overview](images/dashboard-overview.png)
+*Real-time metrics with OpenAI-inspired dark theme*
+
+### Live Charts
+![Live Charts](images/live-charts.png)
+*CPU, Memory, Network, Disk I/O, System Load*
+
+### AI Chat Interface
+![AI Chat](images/ai-chat.png)
+*Natural language queries with slash commands*
+
+### Human-in-the-Loop Approval
+![HITL Approval](images/hitl-approval.png)
+*Approval cards for remediation actions*
 
 ---
 
